@@ -51,8 +51,9 @@ class Music(commands.Cog):
 
 
     @commands.command(aliases=["p"])
-    async def play(self, ctx:Context,query:str | None):
+    async def play(self, ctx:Context,*args):
         """Play a song from youtube"""
+        query= " ".join(args)
         type = await link_validation(query)
 
         if ctx.guild.voice_client:
@@ -125,7 +126,7 @@ class Music(commands.Cog):
         await player.resume()
         await ctx.reply("resume kardia bhai",mention_author=False)
 
-    @commands.command(alises=["s","dc"])
+    @commands.command(aliases=["s","dc"])
     async def stop(self, ctx:Context):
         """Stop the current song"""
         player: wavelink.Player = ctx.guild.voice_client
