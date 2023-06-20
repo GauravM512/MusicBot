@@ -65,7 +65,9 @@ class Music(commands.Cog):
                     query = re.sub(r"list=[^&?]+", "", query)
                 track = await wavelink.YouTubeTrack.search(query)
                 player.queue.put(track[0])
-                await ctx.reply("queue me daal dia bhai",mention_author=False)
+                embed = discord.Embed(title="Queue me daal dia bhai", description=track[0].title, color=0x00ff00)
+                embed.set_image(url=track[0].thumbnail)
+                await ctx.reply(embed=embed,mention_author=False)
                 return
             
         if not query:
