@@ -1,12 +1,11 @@
 import asyncio
+import re
 
 import discord
 import wavelink
 from discord.ext import commands
 from discord.ext.commands import Context
-import re
 
-import re
 
 async def link_validation(link: str):
     playlist_regex = r"^(https?:\/\/)?(www\.)?(youtube\.com)\/(playlist\?|watch\?)(list=)([a-zA-Z0-9_-]+)"
@@ -15,15 +14,7 @@ async def link_validation(link: str):
     if re.match(playlist_regex, link):
         # Check if the link contains the "list" parameter
         if "list=" in link:
-            if "?" in link:
-                # Convert playlist link to video link when "list" parameter appears after "?"
-                video_link = re.sub(r"list=[^&?]+", "", link)
-            else:
-                # Convert playlist link to video link when "list" parameter appears after "/"
-                video_link = re.sub(r"list=[^&?]+", "", link.replace("?list=", ""))
-            return "video", video_link
-
-        return "playlist"
+            return "playlist"
 
     elif re.match(video_regex, link):
         return "video"
@@ -35,6 +26,11 @@ async def link_validation(link: str):
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_wavelink_node_ready(self, node: wavelink.Node) -> None:
+        print(f"Node {node.id} is ready!")
+
 
     @commands.Cog.listener()
     async def on_wavelink_track_end(
@@ -51,59 +47,65 @@ class Music(commands.Cog):
 
 
     @commands.command(aliases=["p"])
-    async def play(self, ctx:Context,*args):
-        """Play a song from youtube"""
-        query= " ".join(args)
-        type = await link_validation(query)
+    async def play(self, ctx: Context, *args):
+        """Play a song from YouTube"""
+        query = " ".join(args)
+        media_type = await link_validation(query)
 
-        if ctx.guild.voice_client:
-            player: wavelink.Player = ctx.guild.voice_client
-            if player.is_playing():
-                if type == "playlist":
-                    return await ctx.reply("sorry bhai playlist nai bajta",mention_author=False)
-                if type in ["video"]:
-                    query = re.sub(r"list=[^&?]+", "", query)
-                track = await wavelink.YouTubeTrack.search(query)
-                player.queue.put(track[0])
-                embed = discord.Embed(title="Queue me daal dia bhai", description=track[0].title, color=0x00ff00)
-                embed.set_image(url=track[0].thumbnail)
-                await ctx.reply(embed=embed,mention_author=False)
-                return
-            
-        if not query:
-            await ctx.reply("kya chahiye bhai song ka naam to bata",mention_author=False)
-            return
         if ctx.author.voice is None:
-            await ctx.reply("pehle voice chat join karle bhai!",mention_author=False)
+            await ctx.reply("Bhai Voice chat join karega pehle", mention_author=False)
             return
+
+        if not query:
+            await ctx.reply("Song toh likh bhai", mention_author=False)
+            return
+
         if not ctx.guild.voice_client:
-            player: wavelink.Player = await ctx.author.voice.channel.connect(
-                cls=wavelink.Player
-            )
+            player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
         else:
-            player: wavelink.Player = ctx.guild.voice_client
+            player = ctx.guild.voice_client
+        
         if player.channel.id != ctx.author.voice.channel.id:
             if player.is_playing():
-                await ctx.send("andha h kya baja toh raha hu dusre channel me", mention_author=False)
+                await ctx.send("Bhai tujhe dikh nai ra me kahi aur baja raha hu", mention_author=False)
                 return
             else:
                 await player.disconnect()
-                player: wavelink.Player = await ctx.author.voice.channel.connect(
-                    cls=wavelink.Player
-                )
-        
-        if type == "playlist":
-            await ctx.reply("sorry bhai playlist nai bajta",mention_author=False)
-        if type in ["string", "video"]:
+                player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+
+        if ctx.guild.voice_client:
+            player = ctx.guild.voice_client
+            if player.is_playing():
+                if media_type == "playlist":
+                    return await ctx.reply("Playlist nai bajata me.", mention_author=False)
+                if media_type == "video":
+                    query = re.sub(r"list=[^&?]+", "", query)
+                track = await wavelink.YouTubeTrack.search(query)
+                player.queue.put(track[0])
+                embed = discord.Embed(title="Added to Queue", description=track[0].title, color=0x00ff00)
+                embed.set_image(url=track[0].thumbnail)
+                await ctx.reply(embed=embed, mention_author=False)
+                return
+
+        if media_type == "playlist":
+            await ctx.reply("Sorry bhai playlist nai bajata me", mention_author=False)
+            return
+
+        if media_type in ["string", "video"]:
             query = re.sub(r"list=[^&?]+", "", query)
             tracks = await wavelink.YouTubeTrack.search(query)
-        if not tracks:
-            await ctx.reply("dhang se link na lawde kuch search result nai aya", mention_author=False)
+            await player.play(tracks[0])
+            embed = discord.Embed(title="Now Playing", description=tracks[0].title, color=0x00ff00)
+            embed.set_image(url=tracks[0].thumbnail)
+            await ctx.reply(embed=embed)
             return
-        await player.play(tracks[0])
-        embed= discord.Embed(title="Now Playing", description=tracks[0].title, color=0x00ff00)
-        embed.set_image(url=tracks[0].thumbnail)
-        await ctx.reply(embed=embed)
+
+        if not tracks:
+            await ctx.reply("Dhang se likh na lawde kuch result nai aya", mention_author=False)
+            return
+
+        
+
 
     @commands.command(aliases=["pa"])
     async def pause(self, ctx:Context):
@@ -198,6 +200,8 @@ class Music(commands.Cog):
             return
         await player.set_volume(volume)
         await ctx.reply(f"{volume} kardia volume",mention_author=False)
+
+
 
     
     
