@@ -2,7 +2,8 @@ from discord.ext import commands
 import discord
 import config
 import wavelink
-from wavelink.ext import spotify
+# from wavelink.ext import spotify
+from wavelink.exceptions import InvalidLavalinkResponse
 from cogs import EXTENSIONS
 
 class Bot(commands.Bot):
@@ -10,13 +11,13 @@ class Bot(commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned_or('!'), intents=intents, **kwargs)
 
     async def setup_hook(self):
-        sc = spotify.SpotifyClient(
-            client_id=config.spotify['client_id'],
-            client_secret=config.spotify['client_secret']
-        )
+        # sc = spotify.SpotifyClient(
+        #     client_id=config.spotify['client_id'],
+        #     client_secret=config.spotify['client_secret']
+        # )
         node: wavelink.Node = wavelink.Node(uri='http://lavalink.devamop.in:80', password='DevamOP')
-        node2: wavelink.Node = wavelink.Node(uri='http://fsn.lavalink.alexanderof.xyz:2333', password='lavalink')
-        await wavelink.NodePool.connect(client=self, nodes=[node,node2], spotify=sc)
+        node1: wavelink.Node = wavelink.Node(uri='http://141.95.90.1:88', password='youshallnotpass')
+        await wavelink.NodePool.connect(client=self, nodes=[node1,node])
         
         await self.load_extension('jishaku')
         for cog in EXTENSIONS:
@@ -28,8 +29,11 @@ class Bot(commands.Bot):
 
 
     async def on_command_error(self, context, exception ):
-        if exception.__class__.__name__ == "CommandNotFound":
-            return
+        print(exception)
+        if isinstance(exception, commands.CommandNotFound):
+            return await context.send('Kuch bhi mat likh bhai')
+        if isinstance(exception, InvalidLavalinkResponse):
+            return await context.send('Kuch toh gadbad hai bhai, mene <@327390030689730561> ko bhej diya hai dekhne ke liye')
         else:
             return await super().on_command_error(context, exception)
 
@@ -42,5 +46,6 @@ class Bot(commands.Bot):
 intents = discord.Intents.default()
 intents.message_content = True
 bot = Bot(intents=intents)
-
+import uvloop
+uvloop.install()
 bot.run(config.token)

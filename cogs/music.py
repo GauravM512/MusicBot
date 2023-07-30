@@ -1,17 +1,10 @@
 import asyncio
-import re
 
 import discord
 import wavelink
 from discord.ext import commands
 from discord.ext.commands import Context
 
-class CustomPlayer(wavelink.Player):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.autoplay = True
-
-    
 
 async def check_author(ctx: Context):
     if ctx.author.voice is None:
@@ -22,7 +15,7 @@ async def check_author(ctx: Context):
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.auto = False
+        self.auto = {883632064283439115:False,901076587640930334:False}
 
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, node: wavelink.Node) -> None:
@@ -37,8 +30,16 @@ class Music(commands.Cog):
         try:
             await self.bot.wait_for("wavelink_track_start", timeout=300)
         except asyncio.TimeoutError:
-            self.auto = False
+            self.auto[payload.player.guild.id] = not self.auto.get(payload.player.guild.id,False)
             await player.disconnect()
+
+    # @commands.Cog.listener()
+    # async def on_wavelink_track_start(
+    #     self, payload : wavelink.TrackEventPayload
+    # ):
+    #     embed = discord.Embed(title="Now Playing", description=f"[{payload.track.title}]({payload.track.uri})", color=discord.Color.blurple())
+    #     embed.set_image(url=payload.original.thumb)
+    #     await payload.player.channel.send(embed=embed)
 
 
 
@@ -46,7 +47,7 @@ class Music(commands.Cog):
     async def play(self, ctx: Context, *args):
         """Play a song from YouTube"""
         query = " ".join(args)
-
+        auto = self.auto.get(ctx.guild.id,False)
         if ctx.author.voice is None:
             await ctx.reply("Bhai Voice chat join karega pehle", mention_author=False)
             return
@@ -64,7 +65,7 @@ class Music(commands.Cog):
         tracks = await wavelink.YouTubeTrack.search(query)
         if isinstance(tracks, (list)):
             if not player.is_playing():
-                await player.play(tracks[0],populate=self.auto)
+                await player.play(tracks[0],populate=auto)
                 embed = discord.Embed(title="Now Playing", description=f"[{tracks[0].title}]({tracks[0].uri})", color=discord.Color.blurple())
                 embed.set_image(url=tracks[0].thumb)
                 await ctx.reply(embed=embed, mention_author=False)
@@ -76,7 +77,7 @@ class Music(commands.Cog):
             await player.queue.put_wait(tracks)
             if not player.is_playing():
                 track = player.queue.get()
-                await player.play(track,populate=self.auto)
+                await player.play(track,populate=auto)
                 embed = discord.Embed(title="Now Playing", description=f"[{track.title}]({track.uri})", color=discord.Color.blurple())
                 embed.set_image(url=track.thumb)
                 await ctx.reply(embed=embed, mention_author=False)
@@ -130,7 +131,7 @@ class Music(commands.Cog):
         if player.queue.is_empty != True:
             player.queue.clear()
         await player.disconnect()
-        self.auto = False
+        self.auto[ctx.guild.id] = not self.auto.get(ctx.guild.id,False)
         await ctx.message.add_reaction("👍")
 
     @commands.command(aliases=["sk","n","next"])
@@ -208,14 +209,13 @@ class Music(commands.Cog):
         await ctx.reply(f"{volume} kardia volume",mention_author=False)
 
     @commands.command(aliases=["auto"])
-    async def autoplay(self, ctx:Context):
+    async def autoplay(self, ctx:Context,switch:bool | None):
         """Toggle autoplay"""
-        check= await check_author(ctx)
+        check = await check_author(ctx)
         if not check:
             return
-        player:wavelink.Player = ctx.guild.voice_client or await ctx.author.voice.channel.connect(cls=wavelink.Player)
-        self.auto = not self.auto
-        if self.auto:
+        self.auto[ctx.guild.id] = switch
+        if switch:
             await ctx.reply("autoplay on kardia bhai",mention_author=False)
         else:
             await ctx.reply("autoplay off kardia bhai",mention_author=False)
