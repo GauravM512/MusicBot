@@ -2,7 +2,6 @@ from discord.ext import commands
 import discord
 import config
 import wavelink
-from wavelink.exceptions import InvalidLavalinkResponse
 import asqlite
 from cogs import EXTENSIONS
 
@@ -48,9 +47,9 @@ class Bot(commands.Bot):
     async def setup_hook(self):
         self.db = Database(await asqlite.connect('databse.db'))
         await self.db.create_table()
-        node: wavelink.Node = wavelink.Node(uri='http://l1.devamop.in:80', password='DevamOP')
-        node1: wavelink.Node = wavelink.Node(uri='https://l1.devamop.in:443', password='DevamOP',secure=True)
-        await wavelink.NodePool.connect(client=self, nodes=[node,node1])
+        node: wavelink.Node = wavelink.Node(uri='http://lava-v4.sirplancake.dev:2333', password='KBjV?Cs>#B!>pcEZa?yc1%Vy')
+        node1: wavelink.Node = wavelink.Node(uri='http://lava-v3.sirplancake.dev:2334', password='e0krPn7)yX<@j=REb!x?dWtY')
+        await wavelink.Pool.connect(client=self,nodes=[node,node1])
         
         await self.load_extension('jishaku')
         for cog in EXTENSIONS:
@@ -65,8 +64,6 @@ class Bot(commands.Bot):
         print(exception)
         if isinstance(exception, commands.CommandNotFound):
             return await context.send('Kuch bhi mat likh bhai')
-        if isinstance(exception, InvalidLavalinkResponse):
-            return await context.send('Kuch toh gadbad hai bhai, mene <@327390030689730561> ko bhej diya hai dekhne ke liye')
         else:
             return await super().on_command_error(context, exception)
 
