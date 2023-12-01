@@ -2,22 +2,55 @@ from discord.ext import commands
 import discord
 import config
 import wavelink
-# from wavelink.ext import spotify
 from wavelink.exceptions import InvalidLavalinkResponse
+import asqlite
 from cogs import EXTENSIONS
+
+
+class Database:
+    def __init__(self,db):
+        self.db: asqlite.Connection = db
+    table = """CREATE TABLE IF NOT EXISTS valo (
+        id INTEGER PRIMARY KEY,
+        name TEXT,
+        tag TEXT
+    )"""
+    add = """INSERT OR REPLACE INTO valo (id, name, tag) VALUES (?, ?, ?);"""
+    delete = """DELETE FROM valo WHERE id = ?"""
+    get = """SELECT * FROM valo WHERE id = ?"""
+    async def create_table(self):
+        async with self.db.cursor() as cursor:
+            await cursor.execute(self.table)
+            await self.db.commit()
+    
+    async def add_user(self, id,name, tag):
+        async with self.db.cursor() as cursor:
+            await cursor.execute(self.add, (id,name, tag))
+            await self.db.commit()
+
+    async def delete_user(self, id):
+        async with self.db.cursor() as cursor:
+            await cursor.execute(self.delete, (id,))
+            await self.db.commit()
+        
+    async def get_user(self, id):
+        async with self.db.cursor() as cursor:
+            await cursor.execute(self.get, (id,))
+            return await cursor.fetchone()
+    
+    async def close(self):
+        await self.db.close()
 
 class Bot(commands.Bot):
     def __init__(self, intents: discord.Intents, **kwargs):
         super().__init__(command_prefix=commands.when_mentioned_or('!'), intents=intents, **kwargs)
 
     async def setup_hook(self):
-        # sc = spotify.SpotifyClient(
-        #     client_id=config.spotify['client_id'],
-        #     client_secret=config.spotify['client_secret']
-        # )
-        node: wavelink.Node = wavelink.Node(uri='http://lavalink.devamop.in:80', password='DevamOP')
-        node1: wavelink.Node = wavelink.Node(uri='http://141.95.90.1:88', password='youshallnotpass')
-        await wavelink.NodePool.connect(client=self, nodes=[node1,node])
+        self.db = Database(await asqlite.connect('databse.db'))
+        await self.db.create_table()
+        node: wavelink.Node = wavelink.Node(uri='http://l1.devamop.in:80', password='DevamOP')
+        node1: wavelink.Node = wavelink.Node(uri='https://l1.devamop.in:443', password='DevamOP',secure=True)
+        await wavelink.NodePool.connect(client=self, nodes=[node,node1])
         
         await self.load_extension('jishaku')
         for cog in EXTENSIONS:
@@ -37,6 +70,9 @@ class Bot(commands.Bot):
         else:
             return await super().on_command_error(context, exception)
 
+    async def close(self) -> None:
+        await self.db.close()
+        return await super().close()
     
     
     async def on_ready(self):
