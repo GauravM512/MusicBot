@@ -1,5 +1,4 @@
 import asyncio
-
 import discord
 import wavelink
 from discord.ext import commands
@@ -14,8 +13,8 @@ async def check_author(ctx: Context):
 
 class Music(commands.Cog):
     def __init__(self, bot):
-        self.bot = bot
-        self.auto = {883632064283439115:False,901076587640930334:False}
+        self.bot: commands.Bot = bot
+        self.auto = {883632064283439115:False}
 
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, node: wavelink.Node) -> None:
@@ -30,17 +29,16 @@ class Music(commands.Cog):
         try:
             await self.bot.wait_for("wavelink_track_start", timeout=300)
         except asyncio.TimeoutError:
-            self.auto[payload.player.guild.id] = not self.auto.get(payload.player.guild.id,False)
             await player.disconnect()
 
-    # @commands.Cog.listener()
-    # async def on_wavelink_track_start(
-    #     self, payload : wavelink.TrackEventPayload
-    # ):
-    #     embed = discord.Embed(title="Now Playing", description=f"[{payload.track.title}]({payload.track.uri})", color=discord.Color.blurple())
-    #     embed.set_image(url=payload.original.thumb)
-    #     await payload.player.channel.send(embed=embed)
-
+    @commands.Cog.listener()
+    async def on_wavelink_track_start(
+        self, payload : wavelink.TrackEventPayload
+    ):  
+        channel = self.bot.get_channel(1037404775064551424)
+        embed = discord.Embed(title="Now Playing", description=f"[{payload.track.title}]({payload.track.uri})", color=discord.Color.blurple())
+        embed.set_image(url=payload.original.thumb)
+        await channel.send(embed=embed)
 
 
     @commands.command(aliases=["p"])
@@ -78,18 +76,15 @@ class Music(commands.Cog):
             if not player.is_playing():
                 track = player.queue.get()
                 await player.play(track,populate=auto)
-                embed = discord.Embed(title="Now Playing", description=f"[{track.title}]({track.uri})", color=discord.Color.blurple())
-                embed.set_image(url=track.thumb)
-                await ctx.reply(embed=embed, mention_author=False)
+                # embed = discord.Embed(title="Now Playing", description=f"[{track.title}]({track.uri})", color=discord.Color.blurple())
+                # embed.set_image(url=track.thumb)
+                # await ctx.reply(embed=embed, mention_author=False)
             else:
                 await ctx.reply(f"Queued Playlist ", mention_author=False)
 
         else:
             reply_message = "Kuch nai mila bhai"
             await ctx.reply(reply_message, mention_author=False)
-
-
-
 
 
     @commands.command(aliases=["pa"])
@@ -209,18 +204,54 @@ class Music(commands.Cog):
         await ctx.reply(f"{volume} kardia volume",mention_author=False)
 
     @commands.command(aliases=["auto"])
-    async def autoplay(self, ctx:Context,switch:bool | None):
+    async def autoplay(self, ctx:Context):
         """Toggle autoplay"""
         check = await check_author(ctx)
         if not check:
             return
-        self.auto[ctx.guild.id] = switch
-        if switch:
-            await ctx.reply("autoplay on kardia bhai",mention_author=False)
-        else:
-            await ctx.reply("autoplay off kardia bhai",mention_author=False)
+        view = Autoplay.autoview()
+        view.add_item(Autoplay.on())
+        view.add_item(Autoplay.off())
+        view.children[0].disabled = self.auto.get(ctx.guild.id,False)
+        view.children[1].disabled = not self.auto.get(ctx.guild.id,False)
+        view.value = self.auto.get(ctx.guild.id,False)
+        view.message = ctx
+        await ctx.reply(view=view,mention_author=False)
+        await view.wait()
+        self.auto[ctx.guild.id] = view.value
+        return
+        
 
 
+
+class Autoplay:
+    class autoview(discord.ui.View):
+        def __init__(self):
+            super().__init__()
+            self.value:bool = False
+
+        async def stop(self) -> None:
+            self.clear_items()
+            return super().stop()
+
+
+    class on(discord.ui.Button):
+        def __init__(self):
+            super().__init__(style=discord.ButtonStyle.green, label="On", row=0)
+
+        async def callback(self, interaction: discord.Interaction):
+            self.view.value = True
+            await self.view.stop()
+            await interaction.response.edit_message(view=self.view,content="AutoPlay On")
+
+    class off(discord.ui.Button):
+        def __init__(self):
+            super().__init__(style=discord.ButtonStyle.red, label="Off", row=0)
+
+        async def callback(self, interaction: discord.Interaction):
+            self.view.value = False
+            await self.view.stop()
+            await interaction.response.edit_message(view=self.view,content="AutoPlay Off")
 
 
     
