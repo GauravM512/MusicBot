@@ -192,6 +192,24 @@ class Music(commands.Cog):
         await player.set_volume(volume)
         await ctx.reply(f"{volume} kardia volume",mention_author=False)
 
+    @commands.command(aliases=["l"])
+    async def loop(self, ctx:Context):
+        """Loop the current song"""
+        check = await check_author(ctx)
+        if not check:
+            return
+        player: wavelink.Player = ctx.guild.voice_client
+        if not player.playing:
+            await ctx.reply("kya loop karu jab kuch nai baj raha")
+            return
+        if player.queue.mode == wavelink.QueueMode.loop:
+            player.queue.mode = wavelink.QueueMode.normal
+            await ctx.reply("loop band kardia bhai",mention_author=False)
+            return
+        player.queue.mode = wavelink.QueueMode.loop
+        await ctx.reply("loop kardia bhai",mention_author=False)
+
+
 
 
 
