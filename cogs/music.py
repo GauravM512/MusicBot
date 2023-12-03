@@ -30,6 +30,13 @@ class Music(commands.Cog):
         except asyncio.TimeoutError:
             await player.disconnect()
 
+    @commands.Cog.listener()
+    async def on_wavelink_track_start(self,payload: wavelink.TrackStartEventPayload):
+        channel=payload.original.channel
+        embed = discord.Embed(title="Now Playing", description=f"[{payload.track.title}]({payload.track.uri})", color=discord.Color.blurple())
+        embed.add_field(name="Requested by", value=f"{payload.original.requester}", inline=False)
+        embed.set_image(url=payload.track.artwork)
+        await channel.send(embed=embed)
 
 
     @commands.command(aliases=["p"])
@@ -52,23 +59,24 @@ class Music(commands.Cog):
         tracks = await wavelink.Playable.search(query)
         if isinstance(tracks, (list)):
             if not player.playing:
+                tracks[0].channel=ctx.channel
+                tracks[0].requester=ctx.author.display_name
                 await player.play(tracks[0])
                 player.autoplay= wavelink.AutoPlayMode.partial
-                embed = discord.Embed(title="Now Playing", description=f"[{tracks[0].title}]({tracks[0].uri})", color=discord.Color.blurple())
-                embed.set_image(url=tracks[0].artwork)
-                await ctx.reply(embed=embed, mention_author=False)
             else:
+                tracks[0].channel=ctx.channel
+                tracks[0].requester=ctx.author.display_name
                 await player.queue.put_wait(tracks[0])
                 await ctx.reply(f"Queued {tracks[0].title}", mention_author=False)
 
         elif isinstance(tracks, wavelink.Playlist):
+            for track in tracks:
+                track.channel=ctx.channel
+                track.requester=ctx.author.display_name
             await player.queue.put_wait(tracks)
             if not player.playing:
                 track = player.queue.get()
                 await player.play(track)
-                embed = discord.Embed(title="Now Playing", description=f"[{track.title}]({track.uri})", color=discord.Color.blurple())
-                embed.set_image(url=track.artwork)
-                await ctx.reply(embed=embed, mention_author=False)
             else:
                 await ctx.reply(f"Queued Playlist ", mention_author=False)
 
@@ -97,9 +105,6 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.guild.voice_client
-        if player.playing:
-            await ctx.reply("pehle se baj raha h bhai", mention_author=False)
-            return
         if player is None:
             await ctx.reply("kya resume karu jab kuch nai baj raha", mention_author=False)
             return
@@ -113,7 +118,6 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.guild.voice_client
-        
         player.queue.clear()
         await player.disconnect()
         await ctx.message.add_reaction("👍")
@@ -138,12 +142,12 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.guild.voice_client
-        if player.queue:
+        if player.queue==None:
             await ctx.reply("kya queue dikhau jab kuch queue khali hain")
             return
         embed = discord.Embed(title="Queue", description="", color=0x00ff00)
         for i, track in enumerate(player.queue, start=1):
-            embed.description += f"{i}) {track.title}\n"
+            embed.description += f"{i}) {track.title} requester: {track.requester}\n"
         await ctx.reply(embed=embed, mention_author=False)
 
     @commands.command()
@@ -153,13 +157,10 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.guild.voice_client
-        if player.queue.history:
-            await ctx.reply("kya remove karu jab kuch queue khali hain")
-            return
         if index > len(player.queue):
             await ctx.reply("index bada hain queue se bhai")
             return
-        del player.queue[index-1]
+        await player.queue.delete(index-1)
         await ctx.reply("remove kardia bhai",mention_author=False)
 
     @commands.command(aliases=["np"])
@@ -192,23 +193,12 @@ class Music(commands.Cog):
         await player.set_volume(volume)
         await ctx.reply(f"{volume} kardia volume",mention_author=False)
 
-    @commands.command(aliases=["l"])
-    async def loop(self, ctx:Context):
-        """Loop the current song"""
-        check = await check_author(ctx)
-        if not check:
-            return
-        player: wavelink.Player = ctx.guild.voice_client
-        if not player.playing:
-            await ctx.reply("kya loop karu jab kuch nai baj raha")
-            return
-        if player.queue.mode == wavelink.QueueMode.loop:
-            player.queue.mode = wavelink.QueueMode.normal
-            await ctx.reply("loop band kardia bhai",mention_author=False)
-            return
-        player.queue.mode = wavelink.QueueMode.loop
-        await ctx.reply("loop kardia bhai",mention_author=False)
-
+ 
+    @commands.command(aliases=["ping"])
+    async def latency(self, ctx:Context):
+        """Show the bot's latency and lavalink latency"""
+        player : wavelink.Player = ctx.guild.voice_client
+        await ctx.reply(f"Bot latency: {round(self.bot.latency * 1000)}ms\nLavalink latency: {round(player.ping)}ms",mention_author=False)
 
 
 
