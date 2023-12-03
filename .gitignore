@@ -28,3 +28,5 @@ var/
 config.py
 databse.db-shm
 databse.db-wal
+.vscode/
+music.json
