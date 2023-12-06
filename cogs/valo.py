@@ -1,49 +1,48 @@
-from msgspec import Struct
 import discord
 from discord.ext import commands
 import aiohttp
 import asyncio
 
-class Images(Struct):
-    small: str
-    large: str
-    triangle_down: str
-    triangle_up: str
+from pydantic import BaseModel, Field
 
-class Card(Struct):
-    small: str
-    large: str
-    wide: str
-    id : str
+class Images(BaseModel):
+    small: str = Field(..., description="URL for the small image")
+    large: str = Field(..., description="URL for the large image")
+    triangle_down: str = Field(..., description="URL for the triangle-down image")
+    triangle_up: str = Field(..., description="URL for the triangle-up image")
 
+class Card(BaseModel):
+    small: str = Field(..., description="URL for the small card image")
+    large: str = Field(..., description="URL for the large card image")
+    wide: str = Field(..., description="URL for the wide card image")
+    id: str = Field(..., description="Unique identifier for the card")
 
-class Valormmr(Struct):
-    currenttier: int
-    currenttierpatched: str
-    images: Images
-    ranking_in_tier: int
-    mmr_change_to_last_game: int
-    elo: int
-    games_needed_for_rating: int
-    old: bool
+class Valormmr(BaseModel):
+    currenttier: int = Field(..., description="Current tier of the player")
+    currenttierpatched: str = Field(..., description="Current tier with patched rank")
+    images: Images = Field(..., description="Object containing image URLs for the player")
+    ranking_in_tier: int = Field(..., description="Player's ranking within their current tier")
+    mmr_change_to_last_game: int = Field(..., description="MMR change from the last game")
+    elo: int = Field(..., description="Player's current Elo rating")
+    games_needed_for_rating: int = Field(..., description="Number of games needed for rating to update")
+    old: bool = Field(..., description="Indicates whether the data is for the old or new system")
 
+class HighestRank(BaseModel):
+    old: bool = Field(..., description="Indicates whether the data is for the old or new system")
+    tier: int = Field(..., description="Highest tier achieved")
+    patched_tier: str = Field(..., description="Highest tier with patched rank")
+    season: str = Field(..., description="Season in which the highest rank was achieved")
 
-class HighestRank(Struct):
-    old : bool
-    tier: int
-    patched_tier: str
-    season: str
+class Account(BaseModel):
+    puuid: str = Field(..., description="Unique identifier for the player's account")
+    region: str = Field(..., description="Player's region")
+    account_level: int = Field(..., description="Player's account level")
+    name: str = Field(..., description="Player's in-game username")
+    tag: str = Field(..., description="Player's in-game tag")
+    card: Card = Field(..., description="Object containing card information for the player")
+    last_update: str = Field(..., description="Date and time when the data was last updated")
+    last_update_raw: int = Field(..., description="Unix timestamp representation of the last update")
 
-
-class Account(Struct):
-    puuid: str
-    region: str
-    account_level: int
-    name: str
-    tag: str
-    card: Card
-    last_update: str
-    last_update_raw: int
     
 async def fetch_account(name: str, tag: str):
     async with aiohttp.ClientSession() as session:
@@ -115,4 +114,3 @@ class Valorant(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Valorant(bot))
-
