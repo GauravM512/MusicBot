@@ -26,7 +26,7 @@ var/
 
 # Our configuration files
 config.py
-databse.db-shm
-databse.db-wal
+database.db-shm
+database.db-wal
 .vscode/
 music.json
