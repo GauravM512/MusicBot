@@ -45,11 +45,10 @@ class Bot(commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned_or('!'), intents=intents, **kwargs)
 
     async def setup_hook(self):
-        self.db = Database(await asqlite.connect('databse.db'))
+        self.db = Database(await asqlite.connect('database.db'))
         await self.db.create_table()
-        node: wavelink.Node = wavelink.Node(uri='http://lava-v4.sirplancake.dev:2333', password='KBjV?Cs>#B!>pcEZa?yc1%Vy')
-        node1: wavelink.Node = wavelink.Node(uri='http://lava-v3.sirplancake.dev:2334', password='e0krPn7)yX<@j=REb!x?dWtY')
-        await wavelink.Pool.connect(client=self,nodes=[node,node1])
+        node: wavelink.Node = wavelink.Node(uri='http://localhost:2333', password='youshallnotpass')
+        await wavelink.Pool.connect(client=self,nodes=[node])
         
         await self.load_extension('jishaku')
         for cog in EXTENSIONS:
