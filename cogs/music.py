@@ -6,6 +6,15 @@ from discord.ext.commands import Context
 
 
 async def check_author(ctx: Context):
+    """
+    Checks if the author is in a voice channel.
+
+    Parameters:
+    - ctx (Context): The context object representing the invocation context.
+
+    Returns:
+    - bool: True if the author is in a voice channel, False otherwise.
+    """
     if ctx.author.voice is None:
         await ctx.reply("Bhai Voice chat join karega pehle", mention_author=False)
         return False
@@ -32,9 +41,10 @@ class Music(commands.Cog):
 
     @commands.Cog.listener()
     async def on_wavelink_track_start(self,payload: wavelink.TrackStartEventPayload):
-        channel=payload.original.channel
+        channel=payload.player.cchannel
         embed = discord.Embed(title="Now Playing", description=f"[{payload.track.title}]({payload.track.uri})", color=discord.Color.blurple())
-        embed.add_field(name="Requested by", value=f"{payload.original.requester}", inline=False)
+        if payload.player.autoplay == wavelink.AutoPlayMode.partial:
+            embed.add_field(name="Requested by", value=f"{payload.original.requester}", inline=False)
         embed.set_image(url=payload.track.artwork)
         await channel.send(embed=embed)
 
@@ -55,23 +65,22 @@ class Music(commands.Cog):
 
         if player.channel.id != ctx.author.voice.channel.id:
             await ctx.send("Bhai tujhe dikh nai ra me kahi aur baja raha hu", mention_author=False)
-
+        player.cchannel=ctx.channel
         tracks = await wavelink.Playable.search(query)
-        if isinstance(tracks, (list)):
-            if not player.playing:
-                tracks[0].channel=ctx.channel
-                tracks[0].requester=ctx.author.display_name
-                await player.play(tracks[0])
-                player.autoplay= wavelink.AutoPlayMode.partial
-            else:
-                tracks[0].channel=ctx.channel
-                tracks[0].requester=ctx.author.display_name
-                await player.queue.put_wait(tracks[0])
-                await ctx.reply(f"Queued {tracks[0].title}", mention_author=False)
+        if not tracks:
+            await ctx.reply("Kuch nai mila bhai", mention_author=False)
+            return
+        if not player.playing:
+            tracks[0].requester=ctx.author.display_name
+            await player.play(tracks[0])
+            player.autoplay= wavelink.AutoPlayMode.partial
+        else:
+            tracks[0].requester=ctx.author.display_name
+            await player.queue.put_wait(tracks[0])
+            await ctx.reply(f"Queued {tracks[0].title}", mention_author=False)
 
-        elif isinstance(tracks, wavelink.Playlist):
+        if isinstance(tracks, wavelink.Playlist):
             for track in tracks:
-                track.channel=ctx.channel
                 track.requester=ctx.author.display_name
             await player.queue.put_wait(tracks)
             if not player.playing:
@@ -79,10 +88,6 @@ class Music(commands.Cog):
                 await player.play(track)
             else:
                 await ctx.reply(f"Queued Playlist ", mention_author=False)
-
-        else:
-            reply_message = "Kuch nai mila bhai"
-            await ctx.reply(reply_message, mention_author=False)
 
 
     @commands.command(aliases=["pa"])
@@ -118,7 +123,6 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.guild.voice_client
-        player.queue.clear()
         await player.disconnect()
         await ctx.message.add_reaction("👍")
 
@@ -200,7 +204,19 @@ class Music(commands.Cog):
         player : wavelink.Player = ctx.guild.voice_client
         await ctx.reply(f"Bot latency: {round(self.bot.latency * 1000)}ms\nLavalink latency: {round(player.ping)}ms",mention_author=False)
 
-
+    @commands.command(aliases=["ap","auto"])
+    async def autoplay(self, ctx:Context):
+        """Enable/Disable autoplay"""
+        check = await check_author(ctx)
+        if not check:
+            return
+        player: wavelink.Player = ctx.guild.voice_client
+        if player.autoplay == wavelink.AutoPlayMode.partial:
+            player.autoplay = wavelink.AutoPlayMode.enabled
+            await ctx.reply("autoplay enabled",mention_author=False)
+        else:
+            player.autoplay = wavelink.AutoPlayMode.partial
+            await ctx.reply("autoplay disabled",mention_author=False)
 
 
 async def setup(bot):
