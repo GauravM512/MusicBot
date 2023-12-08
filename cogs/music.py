@@ -61,19 +61,20 @@ class Music(commands.Cog):
             await ctx.reply("Song toh likh bhai", mention_author=False)
             return
         player:wavelink.Player
-        player = ctx.guild.voice_client or await ctx.author.voice.channel.connect(cls=wavelink.Player)
+        player = ctx.voice_client or await ctx.author.voice.channel.connect(cls=wavelink.Player)
 
         if player.channel.id != ctx.author.voice.channel.id:
             await ctx.send("Bhai tujhe dikh nai ra me kahi aur baja raha hu", mention_author=False)
         player.cchannel=ctx.channel
+        player.autoplay= wavelink.AutoPlayMode.partial
         tracks = await wavelink.Playable.search(query)
         if not tracks:
             await ctx.reply("Kuch nai mila bhai", mention_author=False)
             return
         if not player.playing:
             tracks[0].requester=ctx.author.display_name
-            await player.play(tracks[0])
-            player.autoplay= wavelink.AutoPlayMode.partial
+            await player.queue.put_wait(tracks[0])
+            await player.play(player.queue.get())
         else:
             tracks[0].requester=ctx.author.display_name
             await player.queue.put_wait(tracks[0])
@@ -96,7 +97,7 @@ class Music(commands.Cog):
         check = await check_author(ctx)
         if not check:
             return
-        player: wavelink.Player = ctx.guild.voice_client
+        player: wavelink.Player = ctx.voice_client
         if not player.playing:
             await ctx.reply("kya pause karu jab kuch nai baj raha", mention_author=False)
             return
@@ -109,7 +110,7 @@ class Music(commands.Cog):
         check = await check_author(ctx)
         if not check:
             return
-        player: wavelink.Player = ctx.guild.voice_client
+        player: wavelink.Player = ctx.voice_client
         if player is None:
             await ctx.reply("kya resume karu jab kuch nai baj raha", mention_author=False)
             return
@@ -122,7 +123,7 @@ class Music(commands.Cog):
         check = await check_author(ctx)
         if not check:
             return
-        player: wavelink.Player = ctx.guild.voice_client
+        player: wavelink.Player = ctx.voice_client
         await player.disconnect()
         await ctx.message.add_reaction("👍")
 
@@ -132,7 +133,7 @@ class Music(commands.Cog):
         check = await check_author(ctx)
         if not check:
             return
-        player: wavelink.Player = ctx.guild.voice_client
+        player: wavelink.Player = ctx.voice_client
         if not player.playing:
             await ctx.reply("kya skip karu jab kuch nai baj raha",mention_author=False)
             return
@@ -145,7 +146,7 @@ class Music(commands.Cog):
         check = await check_author(ctx)
         if not check:
             return
-        player: wavelink.Player = ctx.guild.voice_client
+        player: wavelink.Player = ctx.voice_client
         if player.queue==None:
             await ctx.reply("kya queue dikhau jab kuch queue khali hain")
             return
@@ -160,7 +161,7 @@ class Music(commands.Cog):
         check = await check_author(ctx)
         if not check:
             return
-        player: wavelink.Player = ctx.guild.voice_client
+        player: wavelink.Player = ctx.voice_client
         if index > len(player.queue):
             await ctx.reply("index bada hain queue se bhai")
             return
@@ -173,7 +174,7 @@ class Music(commands.Cog):
         check = await check_author(ctx)
         if not check:
             return
-        player: wavelink.Player = ctx.guild.voice_client
+        player: wavelink.Player = ctx.voice_client
         if not player.playing:
             await ctx.reply("kya dikhau jab kuch nai baj raha")
             return
@@ -187,7 +188,7 @@ class Music(commands.Cog):
         check = await check_author(ctx)
         if not check:
             return
-        player: wavelink.Player = ctx.guild.voice_client
+        player: wavelink.Player = ctx.voice_client
         if volume is None:
             await ctx.reply(f"Current volume {player.volume}",mention_author=False)
             return
@@ -201,7 +202,7 @@ class Music(commands.Cog):
     @commands.command(aliases=["ping"])
     async def latency(self, ctx:Context):
         """Show the bot's latency and lavalink latency"""
-        player : wavelink.Player = ctx.guild.voice_client
+        player : wavelink.Player = ctx.voice_client
         await ctx.reply(f"Bot latency: {round(self.bot.latency * 1000)}ms\nLavalink latency: {round(player.ping)}ms",mention_author=False)
 
     @commands.command(aliases=["ap","auto"])
@@ -210,7 +211,7 @@ class Music(commands.Cog):
         check = await check_author(ctx)
         if not check:
             return
-        player: wavelink.Player = ctx.guild.voice_client
+        player: wavelink.Player = ctx.voice_client
         if player.autoplay == wavelink.AutoPlayMode.partial:
             player.autoplay = wavelink.AutoPlayMode.enabled
             await ctx.reply("autoplay enabled",mention_author=False)
@@ -218,6 +219,22 @@ class Music(commands.Cog):
             player.autoplay = wavelink.AutoPlayMode.partial
             await ctx.reply("autoplay disabled",mention_author=False)
 
+
+    @commands.command(aliases=["l"])
+    async def loop(self, ctx:Context):
+        """Enable/Disable loop"""
+        check = await check_author(ctx)
+        if not check:
+            return
+        player: wavelink.Player = ctx.voice_client
+        if player.queue.mode == wavelink.QueueMode.loop:
+            player.queue.mode = wavelink.QueueMode.normal
+            await ctx.reply("loop disabled",mention_author=False)
+        else:
+            player.queue.mode = wavelink.QueueMode.loop
+            track = player.current
+            await player.queue.put_wait(track)
+            await ctx.reply("loop enabled",mention_author=False)
 
 async def setup(bot):
     await bot.add_cog(Music(bot))
