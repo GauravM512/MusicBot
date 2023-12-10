@@ -66,7 +66,8 @@ class Music(commands.Cog):
         if player.channel.id != ctx.author.voice.channel.id:
             await ctx.send("Bhai tujhe dikh nai ra me kahi aur baja raha hu", mention_author=False)
         player.cchannel=ctx.channel
-        player.autoplay= wavelink.AutoPlayMode.partial
+        if player.autoplay == wavelink.AutoPlayMode.disabled:
+            player.autoplay = wavelink.AutoPlayMode.partial
         tracks = await wavelink.Playable.search(query)
         if not tracks:
             await ctx.reply("Kuch nai mila bhai", mention_author=False)
@@ -98,6 +99,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         if not player.playing:
             await ctx.reply("kya pause karu jab kuch nai baj raha", mention_author=False)
             return
@@ -111,6 +114,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         if player is None:
             await ctx.reply("kya resume karu jab kuch nai baj raha", mention_author=False)
             return
@@ -124,6 +129,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         await player.disconnect()
         await ctx.message.add_reaction("👍")
 
@@ -134,6 +141,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         if not player.playing:
             await ctx.reply("kya skip karu jab kuch nai baj raha",mention_author=False)
             return
@@ -147,6 +156,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         if player.queue==None:
             await ctx.reply("kya queue dikhau jab kuch queue khali hain")
             return
@@ -162,6 +173,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         if index > len(player.queue):
             await ctx.reply("index bada hain queue se bhai")
             return
@@ -175,6 +188,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         if not player.playing:
             await ctx.reply("kya dikhau jab kuch nai baj raha")
             return
@@ -189,6 +204,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         if volume is None:
             await ctx.reply(f"Current volume {player.volume}",mention_author=False)
             return
@@ -212,6 +229,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         if player.autoplay == wavelink.AutoPlayMode.partial:
             player.autoplay = wavelink.AutoPlayMode.enabled
             await ctx.reply("autoplay enabled",mention_author=False)
@@ -227,6 +246,8 @@ class Music(commands.Cog):
         if not check:
             return
         player: wavelink.Player = ctx.voice_client
+        if not player:
+            return
         if player.queue.mode == wavelink.QueueMode.loop:
             player.queue.mode = wavelink.QueueMode.normal
             await ctx.reply("loop disabled",mention_author=False)
@@ -236,5 +257,5 @@ class Music(commands.Cog):
             await player.queue.put_wait(track)
             await ctx.reply("loop enabled",mention_author=False)
 
-async def setup(bot):
+async def setup(bot:commands.Bot):
     await bot.add_cog(Music(bot))
